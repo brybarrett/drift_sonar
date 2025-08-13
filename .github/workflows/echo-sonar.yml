@@ -1,17 +1,20 @@
 name: Drift Sonar Daily
+
 on:
   schedule:
-    - cron: "17 15 * * *"   # daily; adjust if you want
+    - cron: "17 15 * * *"   # daily; adjust if you want (UTC)
   workflow_dispatch:
 
 jobs:
   sonar:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # allow the bot to commit README + log
+      contents: write      # allow the bot to commit README + log
+      issues: write        # allow creating an Issue on ALERT
 
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -22,19 +25,38 @@ jobs:
       - name: Run sonar
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          COMPLETIONS_MODEL: ${{ secrets.COMPLETIONS_MODEL }}  # optional
+          COMPLETIONS_MODEL: ${{ secrets.COMPLETIONS_MODEL }}   # optional
+          EMBED_MODEL: text-embedding-3-small                   # pin to avoid false diffs
+          SNR_ALERT_THRESHOLD: "0.03"                           # tweak if desired
         run: python echo_sonar.py
 
       - name: Extract outputs
         id: parse
         run: |
-          python - <<'PY' > parse.env
+          python - <<'PY' | tee outputs.txt
           import json
-          d=json.load(open('echo_sonar_log.json'))
-          print("fingerprint=0x"+d[-1]['snapshot']['fingerprint'])
-          print("alert=" + ("true" if d[-1].get('alert') else "false"))
+          with open('echo_sonar_log.json','r',encoding='utf-8') as f:
+            d = json.load(f)[-1]
+          print("fingerprint=0x"+d['snapshot']['fingerprint'])
+          print("alert=" + ("true" if d.get('alert') else "false"))
           PY
-          cat parse.env >> "$GITHUB_OUTPUT"
+          echo "fingerprint=$(grep '^fingerprint=' outputs.txt | cut -d= -f2)" >> "$GITHUB_OUTPUT"
+          echo "alert=$(grep '^alert=' outputs.txt | cut -d= -f2)" >> "$GITHUB_OUTPUT"
+
+      - name: Open issue on ALERT
+        if: ${{ steps.parse.outputs.alert == 'true' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const fp = '${{ steps.parse.outputs.fingerprint }}';
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            await github.rest.issues.create({
+              owner, repo,
+              title: `Drift Sonar ALERT: ${fp}`,
+              body: `Mean SNR crossed threshold.\n\nFingerprint: \`${fp}\`\nRun: ${runUrl}`,
+              labels: ['alert']
+            });
 
       - name: Update README badges
         env:
