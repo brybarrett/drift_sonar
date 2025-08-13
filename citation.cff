@@ -1,0 +1,16 @@
+﻿cff-version: 1.2.0
+message: "If you use Drift Sonar in research, blogs, or production reports, please cite:"
+title: "Drift Sonar: Vendor-agnostic drift fingerprinting via Embedding SNR and Merkle roots"
+authors:
+  - family-names: Barrett
+    given-names: Bryan S.
+    website: https://bryansbarrett.dev
+version: 0.1.0
+date-released: 2025-08-13
+license: MIT
+url: https://github.com/brybarrett/drift_sonar
+repository-code: https://github.com/brybarrett/drift_sonar
+abstract: >
+  Drift Sonar computes reproducible EchoFingerprints™ of model/embedding states
+  from invariant probe classes, tracks drift via mean SNR, and exposes a signed
+  public Merkle root for verification.
