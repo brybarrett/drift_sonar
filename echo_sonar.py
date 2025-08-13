@@ -165,9 +165,9 @@ def _local_hash_embeddings(texts: List[str], dim: int = HASH_DIM) -> List[List[f
 
 def embed_texts(texts: List[str]) -> List[List[float]]:
     """
-    Return embedding vectors for texts and sets global EMBED_PROVIDER.
+    Return embedding vectors for texts and set global EMBED_PROVIDER.
     Uses OpenAI by default; falls back to local hashing if LOCAL_FALLBACK=1
-    or if the API call fails and fallback is allowed.
+    or if the API call/import fails and fallback is allowed.
     """
     global EMBED_PROVIDER
     try:
@@ -208,8 +208,10 @@ def _complete_one(prompt: str) -> str:
     return (r.choices[0].message.content or "").strip()
 
 def canary_metrics(prompts: List[str]) -> Dict[str, Any]:
-    if not COMPREHENSIONS_MODEL := COMPLETIONS_MODEL:
+    """Compute lightweight completion stats if COMPLETIONS_MODEL is configured."""
+    if not COMPLETIONS_MODEL:
         return {"enabled": False, "samples": []}
+
     samples = []
     for p in prompts:
         try:
@@ -222,6 +224,7 @@ def canary_metrics(prompts: List[str]) -> Dict[str, Any]:
             "entropy": char_entropy(out),
             "refusal": bool(REFUSAL_PAT.search(out)),
         })
+
     def mean(xs): return sum(xs)/len(xs) if xs else 0.0
     return {
         "enabled": True,
