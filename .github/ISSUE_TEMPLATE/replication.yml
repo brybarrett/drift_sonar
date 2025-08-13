@@ -1,0 +1,51 @@
+name: Replication Report
+description: Report your EchoFingerprint for this repo and environment.
+title: "Replication: EchoFingerprint 0x..."
+labels: ["replication"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for replicating Drift Sonar. Please fill in what you can.
+  - type: input
+    id: fingerprint
+    attributes:
+      label: EchoFingerprint
+      description: Paste the hex fingerprint (with or without "0x").
+      placeholder: 0x1234...
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: Provider
+      placeholder: OpenAI
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      placeholder: text-embedding-3-small
+  - type: input
+    id: completions_model
+    attributes:
+      label: Completions model (if used)
+      placeholder: gpt-4o-mini
+  - type: input
+    id: region
+    attributes:
+      label: Region / Data center (if known)
+  - type: input
+    id: run_date
+    attributes:
+      label: Run date (UTC)
+      placeholder: "YYYY-MM-DD"
+  - type: textarea
+    id: canary
+    attributes:
+      label: Canary stats (optional)
+      description: mean_len_chars / mean_entropy / refusal_rate
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Repro steps, anything interesting you saw.

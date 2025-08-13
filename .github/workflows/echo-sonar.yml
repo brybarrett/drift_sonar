@@ -4,13 +4,18 @@ on:
   schedule:
     - cron: "17 15 * * *"   # daily; adjust if you want (UTC)
   workflow_dispatch:
+    inputs:
+      force_alert:
+        description: "Force-create an alert Issue (for testing)"
+        required: false
+        default: "false"
 
 jobs:
   sonar:
     runs-on: ubuntu-latest
     permissions:
-      contents: write      # allow the bot to commit README + log
-      issues: write        # allow creating an Issue on ALERT
+      contents: write      # commit README + log
+      issues: write        # create Issues on ALERT
 
     steps:
       - uses: actions/checkout@v4
@@ -43,8 +48,24 @@ jobs:
           echo "fingerprint=$(grep '^fingerprint=' outputs.txt | cut -d= -f2)" >> "$GITHUB_OUTPUT"
           echo "alert=$(grep '^alert=' outputs.txt | cut -d= -f2)" >> "$GITHUB_OUTPUT"
 
-      - name: Open issue on ALERT
-        if: ${{ steps.parse.outputs.alert == 'true' }}
+      # Create the 'alert' label if it doesn't exist (best-effort)
+      - name: Ensure 'alert' label exists
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const wanted = { name: 'alert', color: 'd73a4a', description: 'Drift Sonar alert' };
+            try {
+              const labels = await github.paginate(github.rest.issues.listLabelsForRepo, {owner, repo, per_page: 100});
+              if (!labels.find(l => l.name.toLowerCase() === wanted.name)) {
+                await github.rest.issues.createLabel({owner, repo, name: wanted.name, color: wanted.color, description: wanted.description});
+              }
+            } catch (e) {
+              core.warning('Could not ensure label: ' + e.message);
+            }
+
+      - name: Open issue on ALERT (or when forced)
+        if: ${{ steps.parse.outputs.alert == 'true' || github.event.inputs.force_alert == 'true' }}
         uses: actions/github-script@v7
         with:
           script: |
@@ -54,7 +75,7 @@ jobs:
             await github.rest.issues.create({
               owner, repo,
               title: `Drift Sonar ALERT: ${fp}`,
-              body: `Mean SNR crossed threshold.\n\nFingerprint: \`${fp}\`\nRun: ${runUrl}`,
+              body: `Mean SNR crossed threshold (or forced).\n\nFingerprint: \`${fp}\`\nRun: ${runUrl}`,
               labels: ['alert']
             });
 
@@ -74,7 +95,7 @@ jobs:
           s=re.sub(r"^<!-- FINGERPRINT_BADGE -->.*$", fp_badge, s, flags=re.M)
           s=re.sub(r"^<!-- CANARY_BADGE -->.*$", canary_badge, s, flags=re.M)
           open(readme,"w",encoding="utf-8").write(s)
-          print("Updated badges →", fp_badge, "|", canary_badge)
+          print("Updated badges →", fp_badge, " | ", canary_badge)
           PY
 
       - name: Commit results
