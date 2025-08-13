@@ -1,7 +1,7 @@
 ![EchoFingerprint](https://img.shields.io/badge/EchoFingerprint-BOOTSTRAP-black)
 ![Canary](https://img.shields.io/badge/Canary-OK-black)
-<!-- FINGERPRINT_BADGE -->
-<!-- CANARY_BADGE -->
+![EchoFingerprint](https://img.shields.io/badge/EchoFingerprint-0x48368b74fa3caf43b5a342cf169e58cd9878e3f146ebc3b85ac527579ff3c68e-black)
+![Canary](https://img.shields.io/badge/Canary-ALERT-red)
 
 # Drift Sonar: ΔΦ(t) via Embedding SNR + Merkle Fingerprints
 
