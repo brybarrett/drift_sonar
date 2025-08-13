@@ -1,0 +1,56 @@
+name: Drift Sonar Daily
+on:
+  schedule:
+    - cron: "17 15 * * *"   # daily; adjust if you want
+  workflow_dispatch:
+
+jobs:
+  sonar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Run sonar
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          COMPLETIONS_MODEL: ${{ secrets.COMPLETIONS_MODEL }} # optional
+        run: |
+          python echo_sonar.py
+          echo "FINGERPRINT=$(python - <<'PY'
+import json
+d=json.load(open('echo_sonar_log.json'))
+print(d[-1]['snapshot']['fingerprint'])
+PY
+)" >> $GITHUB_ENV
+          echo "ALERT=$(python - <<'PY'
+import json
+d=json.load(open('echo_sonar_log.json'))
+print('true' if d[-1].get('alert') else 'false')
+PY
+)" >> $GITHUB_ENV
+      - name: Update README badges
+        run: |
+          python - <<'PY'
+import os,re,sys
+fp=os.environ["FINGERPRINT"]
+alert=os.environ["ALERT"]=='true'
+readme="README.md"
+s=open(readme,encoding="utf-8").read()
+fp_badge=f"![EchoFingerprint](https://img.shields.io/badge/EchoFingerprint-0x{fp}-black)"
+canary_badge = "![Canary](https://img.shields.io/badge/Canary-ALERT-red)" if alert else "![Canary](https://img.shields.io/badge/Canary-OK-black)"
+s=re.sub(r"^<!-- FINGERPRINT_BADGE -->.*$", fp_badge, s, flags=re.M)
+s=re.sub(r"^<!-- CANARY_BADGE -->.*$", canary_badge, s, flags=re.M)
+open(readme,"w",encoding="utf-8").write(s)
+print("Updated badges →", fp_badge, "|", canary_badge)
+PY
+      - name: Commit results
+        run: |
+          git config user.name "sonar-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add README.md echo_sonar_log.json
+          git commit -m "daily sonar: $FINGERPRINT (alert=${ALERT})" || echo "No changes"
+          git push
